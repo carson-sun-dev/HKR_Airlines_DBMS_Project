@@ -1,0 +1,35 @@
+# --- 数据库与隐私 ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.log
+sql_dumps/
+data/
+
+# --- React/Node (前端) ---
+web/node_modules/
+web/build/
+web/.pnp
+web/.pnp.js
+web/coverage/
+
+# --- 后端/通用 ---
+__pycache__/
+*.py[cod]
+venv/
+env/
+.venv/
+target/
+bin/
+out/
+.gradle/
+.m2/
+
+# --- IDE/通用 ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
