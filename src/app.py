@@ -215,26 +215,73 @@ def refresh_access_token():
 @login_required
 @employee_required # Example: Only employees can create new customer records
 def create_customer():
-    data = request.json
-    conn = get_db_connection()
-    cursor = conn.cursor(prepared=True)
-    
+    data = request.json or {}
+    req = [
+        'customer_id', 'first_name', 'last_name', 'street_address',
+        'city', 'state', 'zip_code', 'marital_status', 'customer_type',
+    ]
+    missing = [k for k in req if data.get(k) in (None, '')]
+    if missing:
+        return jsonify({'error': 'Missing required fields.', 'fields': missing}), 400
+
     try:
-        # Prepared statement against SQL Injection
+        cid = int(data['customer_id'])
+    except (TypeError, ValueError):
+        return jsonify({'error': 'customer_id must be an integer.'}), 400
+    if cid <= 0:
+        return jsonify({'error': 'customer_id must be positive.'}), 400
+
+    raw_g = data.get('gender')
+    if raw_g is None or (isinstance(raw_g, str) and raw_g.strip() == ''):
+        gender = None
+    else:
+        g = str(raw_g).strip().upper()
+        if g not in ('M', 'F'):
+            return jsonify({'error': 'Gender must be M, F, or omitted.'}), 400
+        gender = g
+
+    state = str(data['state']).strip().upper()
+    if len(state) != 2:
+        return jsonify({'error': 'State must be a 2-letter code (e.g. NY).'}), 400
+
+    ctype = str(data['customer_type']).strip().upper()
+    if ctype not in ('A', 'H', 'B'):
+        return jsonify({'error': 'Customer type must be A, H, or B.'}), 400
+
+    ms = str(data['marital_status']).strip().upper()
+    if ms not in ('M', 'S', 'W'):
+        return jsonify({'error': 'Marital status must be M, S, or W.'}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database error'}), 500
+    cursor = conn.cursor(prepared=True)
+
+    try:
         query = """INSERT INTO HKR_CUSTOMER 
                    (CUSTOMER_ID, First_Name, Last_Name, Street_Address, City, State, Zip_Code, Gender, Marital_Status, Customer_Type) 
                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
         values = (
-            data['customer_id'], data['first_name'], data['last_name'], 
-            data['street_address'], data['city'], data['state'], 
-            data['zip_code'], data.get('gender'), data['marital_status'], data['customer_type']
+            cid,
+            str(data['first_name']).strip(),
+            str(data['last_name']).strip(),
+            str(data['street_address']).strip(),
+            str(data['city']).strip(),
+            state,
+            str(data['zip_code']).strip(),
+            gender,
+            ms,
+            ctype,
         )
         cursor.execute(query, values)
-        conn.commit() # Transaction management
+        conn.commit()
         return jsonify({'message': 'Customer created successfully'}), 201
     except Error as e:
         conn.rollback()
-        return jsonify({'error': str(e)}), 400
+        err_msg = str(e)
+        if 'Duplicate entry' in err_msg or '1062' in err_msg:
+            return jsonify({'error': 'Customer ID already exists. Choose another ID.'}), 400
+        return jsonify({'error': err_msg}), 400
     finally:
         cursor.close()
         conn.close()
@@ -270,23 +317,42 @@ def update_customer(customer_id):
     if g.auth.get('role') == 'C' and g.auth.get('customer_id') != customer_id:
         return jsonify({'error': 'Forbidden.'}), 403
 
-    data = request.json
+    data = request.json or {}
+    required = ('street_address', 'city', 'state', 'zip_code')
+    missing = [k for k in required if data.get(k) in (None, '')]
+    if missing:
+        return jsonify({'error': 'Missing required fields.', 'fields': missing}), 400
+
+    state = str(data['state']).strip().upper()
+    if len(state) != 2:
+        return jsonify({'error': 'State must be a 2-letter code (e.g. NY).'}), 400
+
     conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database error'}), 500
     cursor = conn.cursor(prepared=True)
-    
+
     try:
-        # Example of partial update mapping
+        cursor.execute(
+            "SELECT CUSTOMER_ID FROM HKR_CUSTOMER WHERE CUSTOMER_ID = %s",
+            (customer_id,),
+        )
+        if not cursor.fetchone():
+            return jsonify({'error': 'Customer not found'}), 404
+
         query = """UPDATE HKR_CUSTOMER 
                    SET Street_Address = %s, City = %s, State = %s, Zip_Code = %s 
                    WHERE CUSTOMER_ID = %s"""
-        values = (data['street_address'], data['city'], data['state'], data['zip_code'], customer_id)
-        
+        values = (
+            str(data['street_address']).strip(),
+            str(data['city']).strip(),
+            state,
+            str(data['zip_code']).strip(),
+            customer_id,
+        )
         cursor.execute(query, values)
         conn.commit()
-        
-        if cursor.rowcount == 0:
-            return jsonify({'error': 'Customer not found or no changes made'}), 404
-            
+        # MySQL “0 rows affected” when values unchanged — still success if row exists (checked above).
         return jsonify({'message': 'Customer updated successfully'}), 200
     except Error as e:
         conn.rollback()

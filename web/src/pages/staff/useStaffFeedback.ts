@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import type { AxiosError } from "axios";
 import { api } from "@/api/client";
 
 export function useStaffFeedback() {
@@ -11,11 +12,15 @@ export function useStaffFeedback() {
   }, []);
 
   const handleErr = useCallback((e: unknown) => {
+    const ax = e as AxiosError<{ error?: string; details?: string }>;
+    const body = ax.response?.data;
     const msg =
-      (e as { response?: { data?: { error?: string; details?: string } } })?.response?.data?.error ??
-      (e as { response?: { data?: { details?: string } } })?.response?.data?.details ??
+      body?.error ??
+      body?.details ??
+      (ax.response?.status === 404 ? "Not found." : null) ??
+      (ax.message && !ax.response ? ax.message : null) ??
       "Something went wrong. Please try again.";
-    const detail = (e as { response?: { data?: { details?: string } } })?.response?.data?.details;
+    const detail = body?.details && body.details !== msg ? body.details : undefined;
     setError(detail ? `${msg}: ${detail}` : String(msg));
     setSuccess(null);
   }, []);

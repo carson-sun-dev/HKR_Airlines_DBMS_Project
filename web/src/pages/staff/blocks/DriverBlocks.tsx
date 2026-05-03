@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "@/api/client";
+import { StaffActionFeedback } from "@/components/StaffActionFeedback";
 import { ObjectTable } from "@/components/ObjectTable";
 import { apiDelete, useStaffFeedback } from "../useStaffFeedback";
 
@@ -107,8 +108,7 @@ export function DriverBlocks() {
   return (
     <div className="workspace-section">
       <h3 className="section-title">Drivers & assignments</h3>
-      {error ? <div className="error-banner">{error}</div> : null}
-      {success ? <div className="success-banner">{success}</div> : null}
+      <StaffActionFeedback error={error} success={success} />
 
       <div className="card" style={{ marginBottom: "1rem" }}>
         <h4 style={{ margin: "0 0 0.5rem", fontSize: "0.95rem" }}>Driver</h4>

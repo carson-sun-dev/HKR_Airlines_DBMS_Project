@@ -118,6 +118,27 @@ textarea {
   padding: 0.35rem 0.65rem;
   font-size: 0.8rem;
 }
+.btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+.btn:disabled:active {
+  transform: none;
+}
+
+/* Keeps API feedback in view on long Policy administration pages */
+.action-feedback-sticky {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 40;
+  margin-bottom: 0.75rem;
+}
+.action-feedback-sticky .error-banner,
+.action-feedback-sticky .success-banner {
+  margin-bottom: 0;
+  box-shadow: 0 2px 12px rgba(14, 165, 233, 0.15);
+}
 
 .field {
   display: flex;

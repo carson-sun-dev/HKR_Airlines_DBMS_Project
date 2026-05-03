@@ -25,6 +25,7 @@ export function RegisterPage() {
   const [customerId, setCustomerId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   if (isAuthenticated) return <Navigate to="/" replace />;
 
@@ -42,12 +43,15 @@ export function RegisterPage() {
       setError(parsed.error.errors.map((x) => x.message).join("; "));
       return;
     }
+    setSubmitting(true);
     try {
       await api.post("/api/register", toRegisterBody(parsed.data));
       setSuccess("Registration successful. You can sign in now.");
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
       setError(String(msg ?? "Registration failed"));
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -100,8 +104,8 @@ export function RegisterPage() {
               />
             </div>
           ) : null}
-          <button type="submit" className="btn btn-primary" style={{ width: "100%" }}>
-            Register
+          <button type="submit" className="btn btn-primary" style={{ width: "100%" }} disabled={submitting}>
+            {submitting ? "Creating account…" : "Register"}
           </button>
         </form>
         <p style={{ marginTop: "1.25rem", textAlign: "center" }} className="card-muted">

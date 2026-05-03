@@ -11,6 +11,8 @@ export function CustomerLookupPage() {
   const [rawId, setRawId] = useState("");
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
 
   if (role === "C") {
     return <Navigate to="/" replace />;
@@ -19,18 +21,23 @@ export function CustomerLookupPage() {
   async function onLookup(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
     setResult(null);
     const idParsed = customerIdParamSchema.safeParse(rawId.trim());
     if (!idParsed.success) {
       setError("Enter a valid positive integer customer ID.");
       return;
     }
+    setSearching(true);
     try {
       const { data } = await api.get(`/api/customers/${idParsed.data}`);
       setResult(data as Record<string, unknown>);
+      setSuccess("Customer record loaded.");
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
       setError(String(msg ?? "Customer not found or access denied."));
+    } finally {
+      setSearching(false);
     }
   }
 
@@ -44,13 +51,14 @@ export function CustomerLookupPage() {
       </div>
       <div className="card">
         {error ? <div className="error-banner">{error}</div> : null}
+        {success ? <div className="success-banner">{success}</div> : null}
         <form onSubmit={(e) => void onLookup(e)} className="form-inline-end">
           <div className="field" style={{ marginBottom: 0 }}>
             <label htmlFor="cid">Customer ID</label>
             <input id="cid" inputMode="numeric" value={rawId} onChange={(e) => setRawId(e.target.value)} />
           </div>
-          <button type="submit" className="btn btn-primary">
-            Search
+          <button type="submit" className="btn btn-primary" disabled={searching}>
+            {searching ? "Searching…" : "Search"}
           </button>
         </form>
         <ObjectTable data={result} />

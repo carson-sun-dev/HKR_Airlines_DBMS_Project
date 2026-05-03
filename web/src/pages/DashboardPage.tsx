@@ -92,11 +92,14 @@ export function DashboardPage() {
   const [addrState, setAddrState] = useState("");
   const [addrZip, setAddrZip] = useState("");
   const [addrOk, setAddrOk] = useState<string | null>(null);
+  const [addrErr, setAddrErr] = useState<string | null>(null);
+  const [addrSaving, setAddrSaving] = useState(false);
 
   const [qKind, setQKind] = useState("auto_policy");
   const [qId, setQId] = useState("");
   const [qRow, setQRow] = useState<Record<string, unknown> | null>(null);
   const [qErr, setQErr] = useState<string | null>(null);
+  const [qOk, setQOk] = useState<string | null>(null);
 
   const [recordPage, setRecordPage] = useState(1);
   const [myListItems, setMyListItems] = useState<Record<string, unknown>[]>([]);
@@ -110,6 +113,7 @@ export function DashboardPage() {
   const [apPayAmt, setApPayAmt] = useState("");
   const [apPayInv, setApPayInv] = useState("");
   const [apPayMsg, setApPayMsg] = useState<string | null>(null);
+  const [apPaySubmitting, setApPaySubmitting] = useState(false);
 
   const [hpPayId, setHpPayId] = useState("");
   const [hpPayDate, setHpPayDate] = useState("");
@@ -117,6 +121,7 @@ export function DashboardPage() {
   const [hpPayAmt, setHpPayAmt] = useState("");
   const [hpPayInv, setHpPayInv] = useState("");
   const [hpPayMsg, setHpPayMsg] = useState<string | null>(null);
+  const [hpPaySubmitting, setHpPaySubmitting] = useState(false);
 
   useEffect(() => {
     if (role !== "E") return;
@@ -210,7 +215,10 @@ export function DashboardPage() {
   async function saveAddress(e: React.FormEvent) {
     e.preventDefault();
     setAddrOk(null);
+    setAddrErr(null);
+    setProfileErr(null);
     if (customerId == null) return;
+    setAddrSaving(true);
     try {
       await api.put(`/api/customers/${customerId}`, {
         street_address: addrStreet,
@@ -223,13 +231,16 @@ export function DashboardPage() {
       setProfile(data as Record<string, unknown>);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      setProfileErr(String(msg ?? "Unable to save changes."));
+      setAddrErr(String(msg ?? "Unable to save changes."));
+    } finally {
+      setAddrSaving(false);
     }
   }
 
   async function submitAutoPayment(e: React.FormEvent) {
     e.preventDefault();
     setApPayMsg(null);
+    setApPaySubmitting(true);
     try {
       await api.post("/api/auto_payments", {
         auto_payment_id: Number(apPayId),
@@ -242,12 +253,15 @@ export function DashboardPage() {
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
       setApPayMsg(String(msg ?? "Submission failed."));
+    } finally {
+      setApPaySubmitting(false);
     }
   }
 
   async function submitHomePayment(e: React.FormEvent) {
     e.preventDefault();
     setHpPayMsg(null);
+    setHpPaySubmitting(true);
     try {
       await api.post("/api/home_payments", {
         home_payment_id: Number(hpPayId),
@@ -260,12 +274,15 @@ export function DashboardPage() {
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
       setHpPayMsg(String(msg ?? "Submission failed."));
+    } finally {
+      setHpPaySubmitting(false);
     }
   }
 
   async function runCustomerLookup(e: React.FormEvent) {
     e.preventDefault();
     setQErr(null);
+    setQOk(null);
     setQRow(null);
     const id = Number(qId.trim());
     if (!Number.isInteger(id) || id <= 0) {
@@ -280,6 +297,7 @@ export function DashboardPage() {
     try {
       const { data } = await api.get(`${base}/${id}`);
       setQRow(data as Record<string, unknown>);
+      setQOk("Record loaded. Details are below.");
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
       setQErr(String(msg ?? "Record not found or not available for your account."));
@@ -350,9 +368,10 @@ export function DashboardPage() {
                   <input value={addrZip} onChange={(e) => setAddrZip(e.target.value)} />
                 </div>
               </div>
+              {addrErr ? <div className="error-banner">{addrErr}</div> : null}
               {addrOk ? <div className="success-banner">{addrOk}</div> : null}
-              <button type="submit" className="btn btn-primary btn-sm">
-                Save address
+              <button type="submit" className="btn btn-primary btn-sm" disabled={addrSaving}>
+                {addrSaving ? "Saving…" : "Save address"}
               </button>
             </form>
           </div>
@@ -372,6 +391,7 @@ export function DashboardPage() {
                   setRecordPage(1);
                   setQRow(null);
                   setQErr(null);
+                  setQOk(null);
                 }}
               >
                 <option value="auto_policy">Auto policy</option>
@@ -459,6 +479,7 @@ export function DashboardPage() {
               </button>
             </form>
             {qErr ? <div className="error-banner" style={{ marginTop: "0.75rem" }}>{qErr}</div> : null}
+            {qOk ? <div className="success-banner" style={{ marginTop: "0.75rem" }}>{qOk}</div> : null}
             <h4 style={{ margin: "1rem 0 0.5rem", fontSize: "0.95rem" }}>Record detail</h4>
             {qRow ? (
               <ObjectTable data={qRow} />
@@ -520,8 +541,13 @@ export function DashboardPage() {
                       {apPayMsg}
                     </div>
                   ) : null}
-                  <button type="submit" className="btn btn-primary btn-sm" style={{ marginTop: "0.5rem" }}>
-                    Submit auto payment
+                  <button
+                    type="submit"
+                    className="btn btn-primary btn-sm"
+                    style={{ marginTop: "0.5rem" }}
+                    disabled={apPaySubmitting}
+                  >
+                    {apPaySubmitting ? "Submitting…" : "Submit auto payment"}
                   </button>
                 </form>
               </div>
@@ -569,8 +595,13 @@ export function DashboardPage() {
                       {hpPayMsg}
                     </div>
                   ) : null}
-                  <button type="submit" className="btn btn-primary btn-sm" style={{ marginTop: "0.5rem" }}>
-                    Submit homeowners payment
+                  <button
+                    type="submit"
+                    className="btn btn-primary btn-sm"
+                    style={{ marginTop: "0.5rem" }}
+                    disabled={hpPaySubmitting}
+                  >
+                    {hpPaySubmitting ? "Submitting…" : "Submit homeowners payment"}
                   </button>
                 </form>
               </div>

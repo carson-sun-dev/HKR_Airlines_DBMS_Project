@@ -9,6 +9,7 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   if (isAuthenticated) return <Navigate to="/" replace />;
 
@@ -20,8 +21,13 @@ export function LoginPage() {
       setError(parsed.error.errors.map((x) => x.message).join("; "));
       return;
     }
-    const res = await login(parsed.data.username, parsed.data.password, rememberMe);
-    if (!res.ok) setError(res.message);
+    setSubmitting(true);
+    try {
+      const res = await login(parsed.data.username, parsed.data.password, rememberMe);
+      if (!res.ok) setError(res.message);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -77,8 +83,8 @@ export function LoginPage() {
               </span>
             </label>
           </div>
-          <button type="submit" className="btn btn-primary" style={{ width: "100%" }}>
-            Sign in
+          <button type="submit" className="btn btn-primary" style={{ width: "100%" }} disabled={submitting}>
+            {submitting ? "Signing in…" : "Sign in"}
           </button>
         </form>
         <p style={{ marginTop: "1.25rem", textAlign: "center" }} className="card-muted">
