@@ -34,3 +34,11 @@ export const overviewStatsSchema = z.object({
   home_premium_total: z.number().nonnegative(),
   customer_count: z.number().nonnegative(),
 });
+
+/** Customer-scoped paginated list from GET /api/me/records/:kind */
+export const myRecordsPageSchema = z.object({
+  items: z.array(z.record(z.string(), z.unknown())),
+  total: z.number().int().nonnegative(),
+  page: z.number().int().positive(),
+  per_page: z.number().int().positive(),
+});

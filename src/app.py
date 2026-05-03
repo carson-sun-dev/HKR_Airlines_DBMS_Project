@@ -295,6 +295,161 @@ def update_customer(customer_id):
         cursor.close()
         conn.close()
 
+
+def _json_clean_row(row):
+    """将 Decimal 等类型转为 JSON 友好值（列表接口与 stats 一致）。"""
+    if row is None:
+        return None
+    d = dict(row)
+    for k, v in list(d.items()):
+        if isinstance(v, Decimal):
+            d[k] = float(v)
+    return d
+
+
+def _json_clean_rows(rows):
+    return [_json_clean_row(r) for r in rows]
+
+
+@app.route("/api/me/records/<kind>", methods=["GET"])
+@login_required
+def list_my_records(kind):
+    """当前登录客户（role=C）分页列出本人名下的保单、账单、标的、驾驶员等摘要行。"""
+    if g.auth.get("role") != "C":
+        return jsonify({"error": "Forbidden. Customer access only."}), 403
+    raw_cid = g.auth.get("customer_id")
+    if raw_cid is None:
+        return jsonify({"error": "Account has no linked customer record."}), 403
+    customer_id = int(raw_cid)
+
+    page = request.args.get("page", default=1, type=int)
+    per_page = request.args.get("per_page", default=10, type=int)
+    if page < 1:
+        page = 1
+    if per_page < 1:
+        per_page = 10
+    if per_page > 50:
+        per_page = 50
+    offset = (page - 1) * per_page
+
+    specs = {
+        "auto_policy": (
+            "SELECT COUNT(*) AS c FROM HKR_AUTO_POLICY WHERE CUSTOMER_ID = %s",
+            "SELECT * FROM HKR_AUTO_POLICY WHERE CUSTOMER_ID = %s ORDER BY Auto_Policy_ID LIMIT %s OFFSET %s",
+            (customer_id, per_page, offset),
+        ),
+        "home_policy": (
+            "SELECT COUNT(*) AS c FROM HKR_HOME_POLICY WHERE CUSTOMER_ID = %s",
+            "SELECT * FROM HKR_HOME_POLICY WHERE CUSTOMER_ID = %s ORDER BY Home_Policy_ID LIMIT %s OFFSET %s",
+            (customer_id, per_page, offset),
+        ),
+        "auto_invoice": (
+            """SELECT COUNT(*) AS c FROM HKR_AUTO_INVOICE i
+               JOIN HKR_AUTO_POLICY p ON i.Auto_Policy_ID = p.Auto_Policy_ID
+               WHERE p.CUSTOMER_ID = %s""",
+            """SELECT i.* FROM HKR_AUTO_INVOICE i
+               JOIN HKR_AUTO_POLICY p ON i.Auto_Policy_ID = p.Auto_Policy_ID
+               WHERE p.CUSTOMER_ID = %s ORDER BY i.Auto_Invoice_ID LIMIT %s OFFSET %s""",
+            (customer_id, per_page, offset),
+        ),
+        "home_invoice": (
+            """SELECT COUNT(*) AS c FROM HKR_HOME_INVOICE i
+               JOIN HKR_HOME_POLICY p ON i.Home_Policy_ID = p.Home_Policy_ID
+               WHERE p.CUSTOMER_ID = %s""",
+            """SELECT i.* FROM HKR_HOME_INVOICE i
+               JOIN HKR_HOME_POLICY p ON i.Home_Policy_ID = p.Home_Policy_ID
+               WHERE p.CUSTOMER_ID = %s ORDER BY i.Home_Invoice_ID LIMIT %s OFFSET %s""",
+            (customer_id, per_page, offset),
+        ),
+        "auto_payment": (
+            """SELECT COUNT(*) AS c FROM HKR_AUTO_PAYMENT pay
+               JOIN HKR_AUTO_INVOICE i ON pay.Auto_Invoice_ID = i.Auto_Invoice_ID
+               JOIN HKR_AUTO_POLICY p ON i.Auto_Policy_ID = p.Auto_Policy_ID
+               WHERE p.CUSTOMER_ID = %s""",
+            """SELECT pay.* FROM HKR_AUTO_PAYMENT pay
+               JOIN HKR_AUTO_INVOICE i ON pay.Auto_Invoice_ID = i.Auto_Invoice_ID
+               JOIN HKR_AUTO_POLICY p ON i.Auto_Policy_ID = p.Auto_Policy_ID
+               WHERE p.CUSTOMER_ID = %s ORDER BY pay.Auto_Payment_ID LIMIT %s OFFSET %s""",
+            (customer_id, per_page, offset),
+        ),
+        "home_payment": (
+            """SELECT COUNT(*) AS c FROM HKR_HOME_PAYMENT pay
+               JOIN HKR_HOME_INVOICE i ON pay.Home_Invoice_ID = i.Home_Invoice_ID
+               JOIN HKR_HOME_POLICY p ON i.Home_Policy_ID = p.Home_Policy_ID
+               WHERE p.CUSTOMER_ID = %s""",
+            """SELECT pay.* FROM HKR_HOME_PAYMENT pay
+               JOIN HKR_HOME_INVOICE i ON pay.Home_Invoice_ID = i.Home_Invoice_ID
+               JOIN HKR_HOME_POLICY p ON i.Home_Policy_ID = p.Home_Policy_ID
+               WHERE p.CUSTOMER_ID = %s ORDER BY pay.Home_Payment_ID LIMIT %s OFFSET %s""",
+            (customer_id, per_page, offset),
+        ),
+        "insured_home": (
+            """SELECT COUNT(*) AS c FROM HKR_INSURED_HOME h
+               JOIN HKR_HOME_POLICY p ON h.Home_Policy_ID = p.Home_Policy_ID
+               WHERE p.CUSTOMER_ID = %s""",
+            """SELECT h.* FROM HKR_INSURED_HOME h
+               JOIN HKR_HOME_POLICY p ON h.Home_Policy_ID = p.Home_Policy_ID
+               WHERE p.CUSTOMER_ID = %s ORDER BY h.Home_ID LIMIT %s OFFSET %s""",
+            (customer_id, per_page, offset),
+        ),
+        "insured_vehicle": (
+            """SELECT COUNT(*) AS c FROM HKR_INSURED_VEHICLE v
+               JOIN HKR_AUTO_POLICY p ON v.Auto_Policy_ID = p.Auto_Policy_ID
+               WHERE p.CUSTOMER_ID = %s""",
+            """SELECT v.* FROM HKR_INSURED_VEHICLE v
+               JOIN HKR_AUTO_POLICY p ON v.Auto_Policy_ID = p.Auto_Policy_ID
+               WHERE p.CUSTOMER_ID = %s ORDER BY v.Vehicle_ID LIMIT %s OFFSET %s""",
+            (customer_id, per_page, offset),
+        ),
+        "driver": (
+            """SELECT COUNT(DISTINCT d.Driver_ID) AS c FROM HKR_DRIVER d
+               JOIN HKR_DRIVER_VEHICLE dv ON d.Driver_ID = dv.Driver_ID
+               JOIN HKR_INSURED_VEHICLE v ON dv.Vehicle_ID = v.Vehicle_ID
+               JOIN HKR_AUTO_POLICY p ON v.Auto_Policy_ID = p.Auto_Policy_ID
+               WHERE p.CUSTOMER_ID = %s""",
+            """SELECT DISTINCT d.Driver_ID, d.License_Number, d.First_Name, d.Last_Name, d.Age
+               FROM HKR_DRIVER d
+               JOIN HKR_DRIVER_VEHICLE dv ON d.Driver_ID = dv.Driver_ID
+               JOIN HKR_INSURED_VEHICLE v ON dv.Vehicle_ID = v.Vehicle_ID
+               JOIN HKR_AUTO_POLICY p ON v.Auto_Policy_ID = p.Auto_Policy_ID
+               WHERE p.CUSTOMER_ID = %s
+               ORDER BY d.Driver_ID LIMIT %s OFFSET %s""",
+            (customer_id, per_page, offset),
+        ),
+    }
+    if kind not in specs:
+        return jsonify({"error": "Unknown record kind.", "valid": list(specs.keys())}), 400
+
+    count_sql, select_sql, select_params = specs[kind]
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database error"}), 500
+    cursor = conn.cursor(dictionary=True, prepared=True)
+    try:
+        cursor.execute(count_sql, (customer_id,))
+        total_row = cursor.fetchone()
+        total = int(total_row["c"]) if total_row and total_row.get("c") is not None else 0
+
+        cursor.execute(select_sql, select_params)
+        items = cursor.fetchall()
+        return (
+            jsonify(
+                {
+                    "items": _json_clean_rows(items),
+                    "total": total,
+                    "page": page,
+                    "per_page": per_page,
+                }
+            ),
+            200,
+        )
+    except Error as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
 # --- CRUD Operations for HKR_AUTO_POLICY ---
 
 @app.route('/api/auto_policies', methods=['POST'])
