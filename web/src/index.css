@@ -1,0 +1,323 @@
+:root {
+  --bg: #f0f9ff;
+  --bg-page: #ffffff;
+  --surface: #ffffff;
+  --surface-alt: #e0f2fe;
+  --border: rgba(14, 165, 233, 0.35);
+  --text: #0c4a6e;
+  --text-muted: #0369a1;
+  --primary: #0ea5e9;
+  --primary-dark: #0284c7;
+  --primary-soft: rgba(14, 165, 233, 0.12);
+  --success: #059669;
+  --danger: #dc2626;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --shadow: 0 4px 24px rgba(14, 165, 233, 0.12);
+  font-family: "DM Sans", system-ui, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--text);
+  background-color: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #e0f2fe 0%, #f8fafc 40%, #ffffff 100%);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+a {
+  color: var(--primary-dark);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 1.25rem 1.5rem;
+}
+
+.card-muted {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius-md);
+  border: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: center;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn:active {
+  transform: scale(0.98);
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(14, 165, 233, 0.35);
+}
+.btn-primary:hover {
+  filter: brightness(1.05);
+}
+.btn-ghost {
+  background: var(--surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover {
+  background: var(--primary-soft);
+  color: var(--text);
+}
+.btn-danger {
+  background: #fef2f2;
+  color: var(--danger);
+  border: 1px solid #fecaca;
+}
+.btn-danger:hover {
+  background: #fee2e2;
+}
+.btn-sm {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+}
+.field label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.field input,
+.field select,
+.field textarea {
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.error-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.success-banner {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.data-table th,
+.data-table td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  vertical-align: top;
+  word-break: break-word;
+}
+.data-table th {
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.data-table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.layout-sidebar {
+  background: linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+.layout-sidebar .btn {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.nav-link-active {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--primary-soft);
+}
+
+.workspace-section {
+  margin-bottom: 2rem;
+}
+
+.tabs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-align: center;
+  cursor: pointer;
+}
+.tab-btn:hover {
+  background: var(--primary-soft);
+}
+.tab-btn.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+/* Staff search rows: space around controls; inputs grow so placeholders are visible */
+.form-search-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 0.75rem;
+  align-items: flex-end;
+  margin-bottom: 0.65rem;
+}
+.form-search-row > input[type="text"],
+.form-search-row > input:not([type]) {
+  flex: 1 1 14rem;
+  min-width: min(100%, 14rem);
+  max-width: 100%;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  font-size: 1rem;
+}
+.form-search-row > input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+.form-search-row .btn {
+  flex-shrink: 0;
+}
+
+/* Customer lookup & dashboard: labeled fields + button with consistent gaps */
+.form-inline-end {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 0.75rem;
+  align-items: flex-end;
+}
+.form-inline-end .field {
+  margin-bottom: 0;
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+.form-inline-end .field input,
+.form-inline-end .field select {
+  width: 100%;
+  min-width: min(100%, 14rem);
+}
+
+form > .field-grid ~ button.btn,
+details form > button.btn {
+  margin-top: 0.85rem;
+}
+
+form:not(.form-search-row):not(.form-inline-end) > .field:last-of-type + button.btn {
+  margin-top: 0.85rem;
+}
+
+input::placeholder,
+textarea::placeholder {
+  opacity: 1;
+  color: var(--text-muted);
+}

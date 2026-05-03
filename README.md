@@ -1,57 +1,109 @@
-# HKR Airlines Management System
-**Spring 2026 CS-GY 6083 -B Principles of Database Systems | Project Part II**
-****
+# HKR Insurance — Database Systems Project (Part II)
 
-## ✈️ Project Overview
-This project is the second phase of the Database Systems course. Building upon the relational schema designed in Part I, we are developing a robust, web-based management system for **HKR Airlines**. The system serves as a portal for both passengers (customers) and airline staff (employees), facilitating seamless flight booking and administrative operations.
+**Spring 2026 · CS-GY 6083-B · Principles of Database Systems**
 
-## 🎯 Team Objectives
-- **Functional Integration**: Bridging a backend RDBMS with a modern frontend to perform full CRUD operations.
-- **Security First**: Implementing rigorous defense mechanisms against SQL Injection and XSS, alongside encrypted data storage.
-- **Concurrency & Reliability**: Ensuring data integrity through defined transactions and deadlock prevention.
-- **Professional Engineering**: Utilizing industry-standard version control (GitHub) and enterprise-level directory structures.
+Web application for **HKR Insurance**: policyholders manage their profile and view linked policies and billing; authorized employees administer customers, auto/home policies, invoices, payments, insured property, and drivers. The stack connects a **MySQL** relational database to a **Flask** REST API and a **React (TypeScript)** SPA with a U.S.-style policyholder and operations experience.
 
-## 👥 Team Members
-| Name | Net-ID | Role & Responsibility |
+---
+
+## Project overview
+
+Part II builds on the Part I relational design. The implementation emphasizes secure SQL access (parameterized statements), role-based access (policyholder vs. employee), JWT-based sessions with refresh tokens, and client-side validation. The UI presents readable labels for tabular data (no raw `snake_case` column names in tables) and static guidance to contact a **dedicated HKR account administrator** when policyholders need changes beyond self-service.
+
+---
+
+## Team members
+
+| Name | Net-ID | Role & responsibility |
 | :--- | :--- | :--- |
-| **Ruotong Qin** | rq2119 | TBD |
-| **Hang Sun** | hs5957 | TBD |
-| **Kaishuai Sun** | ks8108 | TBD |
+| **Ruotong Qin** | rq2119 | Database structure design and Web UI design |
+| **Hang Sun** | hs5957 | Database implement, testing and Web backend implement |
+| **Kaishuai Sun** | ks8108 | Database data inserting and Web frontend implement |
 
-## 🛠️ Technology Stack
-- **Frontend**: TBD
-- **Backend**: TBD
-- **Database**: MySQL
-- **API Style**: RESTful API
+---
 
-## 📂 Directory Structure
-The project is organized into four main functional directories:
+## Technology stack
 
-- **docs/**: Contains project requirements, Part I design documents (ERDs), and the final project report.
-- **sql/**: Includes all database-related scripts, including the DDL schema, sample data, and the 6 required analytical queries.
-- **src/**: Houses the backend source code, including API routes, database connection logic, and security middleware.
-- **web/**: Contains the frontend application, including components, styles, and UI logic.
+| Layer | Choice |
+| :--- | :--- |
+| **Database** | MySQL (`HKR_DB` schema; DDL and seeds under `sql/`) |
+| **Backend** | Python **Flask**, **mysql-connector-python**, **Werkzeug** password hashing, **PyJWT** |
+| **Frontend** | **React 18**, **TypeScript**, **Vite**, **React Router**, **Axios**, **Zod**, **Recharts** |
+| **API** | REST (`/api/...`), JSON |
 
-## 🚀 Implementation Features
-### 1. User Authentication & Authorization
-- **Multi-Role Login**: Secure login distinguishing between Customers and Airline Staff.
-- **Secure Registration**: New user registration with encrypted password storage.
+Dependencies: `requirements.txt` (backend), `web/package.json` (frontend).
 
-### 2. Customer Portal (Passenger Services)
-- **Flight Search & Booking**: Search available flights and book tickets (Create).
-- **Manage Bookings**: View flight history (Read) and cancel reservations (Delete).
+---
 
-### 3. Employee Portal (Administrative Services)
-- **Flight Management**: Create new schedules, update flight statuses, and manage records.
-- **Data Insights**: View passenger lists and analytical reports.
+## Repository layout
 
-### 4. System Integrity & Security
-- **Transaction Safety**: Ensuring consistency during concurrent bookings.
-- **Input Sanitization**: Using Prepared Statements to prevent SQL Injection.
+| Path | Contents |
+| :--- | :--- |
+| **`sql/`** | Schema creation (`01_*`), sample data, indexes, roles, analytical queries, transactions/procedures, web user table (`08_*`), etc. Run scripts in course-recommended order. |
+| **`src/`** | Flask app (`app.py`), JWT helpers (`auth_tokens.py`), DB connection and REST routes. |
+| **`web/`** | React SPA: layout, auth context, dashboard (stats / policyholder home), staff workspace blocks, shared table component with human-readable column titles. |
+| **`docs/`** | Requirements, Part I materials, handoff notes as applicable. |
+| **`.env`** (repo root) | Backend configuration: MySQL connection and secrets (`FLASK_SECRET_KEY`, `JWT_SECRET`). Edit the checked-in template for your environment. |
 
-## ✨ Project Highlights
-*(To be determined by the team during development)*
+---
 
-## 📄 Documentation & Demo
-- **Demo**: Full CRUD functionality, source code walkthrough, and analytical SQL execution.
-- **Report**: Detailed PDF covering design details, security features, and 6 complex SQL queries.
+## Features (implemented direction)
+
+1. **Authentication** — Register/login; roles **C** (policyholder, tied to `CUSTOMER_ID`) and **E** (employee). Access and refresh tokens; logout clears client storage.
+2. **Policyholder portal** — View profile; update mailing address; look up own policies, invoices, payments, and related records by ID; report payments against invoices (methods aligned with backend: PayPal, Credit, Debit, Check).
+3. **Operations console** — Employee-only routes: customer lookup, full CRUD-style workflows for auto/home policies, invoices, payments, insured homes/vehicles, drivers, and driver–vehicle links; company overview metrics and charts on the home dashboard.
+4. **Security & integrity** — Prepared statements for mutating queries; authorization checks on routes; password hashing suitable for the deployed Python/OpenSSL environment.
+
+---
+
+## Quick start (local)
+
+**Prerequisites:** Python 3.10+, Node.js 18+, MySQL Server.
+
+1. **Database** — Create the database and objects using the scripts in `sql/` (starting with schema and user/account scripts your instructor specifies). Ensure sample customers exist before registering policyholder accounts that reference `customer_id`.
+
+2. **Environment variables** — Edit **`.env`** in the project root (it ships as a template with placeholders). Set at least:
+
+   | Variable | Purpose |
+   | :--- | :--- |
+   | `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE` | MySQL connection (`MYSQL_DATABASE` should match your schema, default `HKR_DB`). |
+   | `FLASK_SECRET_KEY` | Flask session signing — use a long random string. |
+   | `JWT_SECRET` | JWT access/refresh tokens — use a different long random string from `FLASK_SECRET_KEY` in production. |
+
+   The backend loads `.env` via `python-dotenv` on startup. Optional: `JWT_ACCESS_MINUTES`, `JWT_REFRESH_DAYS` (see comments in `.env`).
+
+3. **Backend run**
+
+   ```bash
+   cd src
+   python3 -m venv .venv
+   source .venv/bin/activate   # Windows: .venv\Scripts\activate
+   pip install -r ../requirements.txt
+   python app.py
+   ```
+
+   Default Flask development server: `http://127.0.0.1:5000`.
+
+4. **Frontend run**
+
+   ```bash
+   cd web
+   npm install
+   npm run dev
+   ```
+
+   Vite dev server (default `http://localhost:5173`) proxies `/api` to `http://127.0.0.1:5000` per `web/vite.config.ts`.
+
+
+---
+
+## Documentation & deliverables
+
+- **Demo / walkthrough**: REST usage, UI flows (policyholder vs. employee), and execution of required analytical SQL where applicable.
+- **Report**: PDF per course instructions (design, security, complex queries, etc.).
+
+---
+
+## Project highlights
+
+*(Team may summarize differentiation—e.g., JWT flow, role enforcement, insurance domain modeling, UI professionalism.)*

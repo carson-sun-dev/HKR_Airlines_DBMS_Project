@@ -1,20 +1,36 @@
-from flask import Flask, request, jsonify, session
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+from flask import Flask, request, jsonify, session, g
 import mysql.connector
 from mysql.connector import Error
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
+from decimal import Decimal
+
+# Load `.env` from project root (directory above `src/`)
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
+import auth_tokens
 
 app = Flask(__name__)
-# In a real app, should keep this secret and load from environment variables
-app.secret_key = 'super_secret_key_for_sessions'
 
-# Database configuration
+_flask_secret = os.environ.get("FLASK_SECRET_KEY") or os.environ.get("SECRET_KEY")
+if not _flask_secret:
+    raise RuntimeError(
+        "FLASK_SECRET_KEY (or SECRET_KEY) must be set in the project root `.env` file."
+    )
+app.secret_key = _flask_secret
+
+# Database configuration — see `.env` in project root (HKR_DB matches sql/ scripts)
 db_config = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': '021108',
-    'database': 'project1',
-    'autocommit': False # Manual commits for transaction control
+    "host": os.environ.get("MYSQL_HOST", "localhost"),
+    "port": int(os.environ.get("MYSQL_PORT", "3306")),
+    "user": os.environ.get("MYSQL_USER", "root"),
+    "password": os.environ.get("MYSQL_PASSWORD", ""),
+    "database": os.environ.get("MYSQL_DATABASE", "HKR_DB"),
+    "autocommit": False,
 }
 
 def get_db_connection():
@@ -25,19 +41,43 @@ def get_db_connection():
         print(f"Error connecting to MySQL: {e}")
         return None
 
+
+def load_auth_context():
+    """解析当前用户：优先 Authorization Bearer（JWT 访问令牌），否则回退 Flask session。"""
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+        payload = auth_tokens.decode_access_token(token)
+        if payload:
+            return {
+                "user_id": int(payload["user_id"]),
+                "role": payload["role"],
+                "customer_id": payload.get("customer_id"),
+            }
+    if "user_id" in session:
+        return {
+            "user_id": session["user_id"],
+            "role": session["role"],
+            "customer_id": session.get("customer_id"),
+        }
+    return None
+
+
 # --- Authorization Decorators ---
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
+        ctx = load_auth_context()
+        if not ctx:
             return jsonify({'error': 'Unauthorized. Please log in.'}), 401
+        g.auth = ctx
         return f(*args, **kwargs)
     return decorated_function
 
 def employee_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if session.get('role') != 'E':
+        if g.auth.get('role') != 'E':
             return jsonify({'error': 'Forbidden. Employee access required.'}), 403
         return f(*args, **kwargs)
     return decorated_function
@@ -55,8 +95,8 @@ def register():
     if not username or not password:
         return jsonify({'error': 'Username and password required'}), 400
 
-    # Encrypt password before storing 
-    hashed_password = generate_password_hash(password)
+    # 使用 pbkdf2:sha256：部分 macOS / 精简 Python 无 hashlib.scrypt，Werkzeug 默认 scrypt 会报 AttributeError
+    hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
 
     conn = get_db_connection()
     if not conn:
@@ -93,11 +133,27 @@ def login():
         user = cursor.fetchone()
 
         if user and check_password_hash(user['Password_Hash'], password):
-            # Set session variables
+            # 仍写入 session，兼容仅用 Cookie 的旧前端 / api_handoff 说明
             session['user_id'] = user['User_ID']
             session['role'] = user['Role']
             session['customer_id'] = user['CUSTOMER_ID']
-            return jsonify({'message': 'Login successful', 'role': user['Role']}), 200
+            # 双 Token：供 React SPA 使用 Bearer，便于与客户端缓存/刷新策略配合（Part II 加分）
+            uid, role = user['User_ID'], user['Role']
+            cid = user['CUSTOMER_ID']
+            if cid is not None:
+                cid = int(cid)
+            access = auth_tokens.create_access_token(
+                user_id=int(uid), role=role, customer_id=cid
+            )
+            refresh = auth_tokens.create_refresh_token(user_id=int(uid))
+            return jsonify({
+                'message': 'Login successful',
+                'role': role,
+                'access_token': access,
+                'refresh_token': refresh,
+                'token_type': 'Bearer',
+                'expires_in': auth_tokens.access_ttl_seconds(),
+            }), 200
         else:
             return jsonify({'error': 'Invalid credentials'}), 401
     finally:
@@ -108,6 +164,50 @@ def login():
 def logout():
     session.clear()
     return jsonify({'message': 'Logged out successfully'}), 200
+
+
+@app.route('/api/refresh', methods=['POST'])
+def refresh_access_token():
+    """使用 refresh_token 换取新的 access_token（双 Token 流程）；无需 Cookie。"""
+    data = request.json or {}
+    refresh_tok = data.get('refresh_token')
+    if not refresh_tok:
+        return jsonify({'error': 'refresh_token required'}), 400
+    payload = auth_tokens.decode_refresh_token(refresh_tok)
+    if not payload:
+        return jsonify({'error': 'Invalid or expired refresh token'}), 401
+    user_id = int(payload['user_id'])
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database error'}), 500
+    cursor = conn.cursor(dictionary=True, prepared=True)
+    try:
+        cursor.execute(
+            "SELECT User_ID, Role, CUSTOMER_ID FROM HKR_USER WHERE User_ID = %s",
+            (user_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return jsonify({'error': 'User not found'}), 401
+        rcid = row['CUSTOMER_ID']
+        if rcid is not None:
+            rcid = int(rcid)
+        access = auth_tokens.create_access_token(
+            user_id=int(row['User_ID']),
+            role=row['Role'],
+            customer_id=rcid,
+        )
+        new_refresh = auth_tokens.create_refresh_token(user_id=int(row['User_ID']))
+        return jsonify({
+            'access_token': access,
+            'refresh_token': new_refresh,
+            'token_type': 'Bearer',
+            'expires_in': auth_tokens.access_ttl_seconds(),
+            'role': row['Role'],
+        }), 200
+    finally:
+        cursor.close()
+        conn.close()
 
 # --- CRUD Operations for HKR_CUSTOMER ---
 
@@ -143,7 +243,7 @@ def create_customer():
 @login_required
 def get_customer(customer_id):
     # Authorization check: Customers can only view their own data 
-    if session.get('role') == 'C' and session.get('customer_id') != customer_id:
+    if g.auth.get('role') == 'C' and g.auth.get('customer_id') != customer_id:
         return jsonify({'error': 'Forbidden. Cannot access other customer data.'}), 403
 
     conn = get_db_connection()
@@ -167,7 +267,7 @@ def get_customer(customer_id):
 @app.route('/api/customers/<int:customer_id>', methods=['PUT'])
 @login_required
 def update_customer(customer_id):
-    if session.get('role') == 'C' and session.get('customer_id') != customer_id:
+    if g.auth.get('role') == 'C' and g.auth.get('customer_id') != customer_id:
         return jsonify({'error': 'Forbidden.'}), 403
 
     data = request.json
@@ -243,7 +343,7 @@ def get_auto_policy(policy_id):
             return jsonify({'error': 'Policy not found'}), 404
 
         # Authorization: Customers can only view their own policies
-        if session.get('role') == 'C' and session.get('customer_id') != policy['CUSTOMER_ID']:
+        if g.auth.get('role') == 'C' and g.auth.get('customer_id') != policy['CUSTOMER_ID']:
             return jsonify({'error': 'Forbidden. This policy belongs to another customer.'}), 403
             
         return jsonify(policy), 200
@@ -355,7 +455,7 @@ def get_auto_invoice(invoice_id):
             return jsonify({'error': 'Invoice not found'}), 404
 
         # Authorization: Customers can only view invoices linked to their own policies
-        if session.get('role') == 'C' and session.get('customer_id') != invoice['CUSTOMER_ID']:
+        if g.auth.get('role') == 'C' and g.auth.get('customer_id') != invoice['CUSTOMER_ID']:
             return jsonify({'error': 'Forbidden. This invoice belongs to another customer.'}), 403
             
         # Remove the joined CUSTOMER_ID from the response for cleaner output
@@ -468,7 +568,7 @@ def get_auto_payment(payment_id):
         if not payment:
             return jsonify({'error': 'Payment not found'}), 404
 
-        if session.get('role') == 'C' and session.get('customer_id') != payment['CUSTOMER_ID']:
+        if g.auth.get('role') == 'C' and g.auth.get('customer_id') != payment['CUSTOMER_ID']:
             return jsonify({'error': 'Forbidden. Cannot view another customer\'s payment.'}), 403
             
         del payment['CUSTOMER_ID']
@@ -575,7 +675,7 @@ def get_home_policy(policy_id):
         if not policy:
             return jsonify({'error': 'Home Policy not found'}), 404
 
-        if session.get('role') == 'C' and session.get('customer_id') != policy['CUSTOMER_ID']:
+        if g.auth.get('role') == 'C' and g.auth.get('customer_id') != policy['CUSTOMER_ID']:
             return jsonify({'error': 'Forbidden. This policy belongs to another customer.'}), 403
             
         return jsonify(policy), 200
@@ -684,7 +784,7 @@ def get_home_invoice(invoice_id):
         if not invoice:
             return jsonify({'error': 'Home Invoice not found'}), 404
 
-        if session.get('role') == 'C' and session.get('customer_id') != invoice['CUSTOMER_ID']:
+        if g.auth.get('role') == 'C' and g.auth.get('customer_id') != invoice['CUSTOMER_ID']:
             return jsonify({'error': 'Forbidden. This invoice belongs to another customer.'}), 403
             
         del invoice['CUSTOMER_ID']
@@ -794,7 +894,7 @@ def get_home_payment(payment_id):
         if not payment:
             return jsonify({'error': 'Home Payment not found'}), 404
 
-        if session.get('role') == 'C' and session.get('customer_id') != payment['CUSTOMER_ID']:
+        if g.auth.get('role') == 'C' and g.auth.get('customer_id') != payment['CUSTOMER_ID']:
             return jsonify({'error': 'Forbidden. Cannot view another customer\'s payment.'}), 403
             
         del payment['CUSTOMER_ID']
@@ -906,7 +1006,7 @@ def get_insured_home(home_id):
         if not home:
             return jsonify({'error': 'Insured Home not found'}), 404
 
-        if session.get('role') == 'C' and session.get('customer_id') != home['CUSTOMER_ID']:
+        if g.auth.get('role') == 'C' and g.auth.get('customer_id') != home['CUSTOMER_ID']:
             return jsonify({'error': 'Forbidden. Cannot view another customer\'s home.'}), 403
             
         del home['CUSTOMER_ID']
@@ -1021,7 +1121,7 @@ def get_insured_vehicle(vehicle_id):
         if not vehicle:
             return jsonify({'error': 'Insured Vehicle not found'}), 404
 
-        if session.get('role') == 'C' and session.get('customer_id') != vehicle['CUSTOMER_ID']:
+        if g.auth.get('role') == 'C' and g.auth.get('customer_id') != vehicle['CUSTOMER_ID']:
             return jsonify({'error': 'Forbidden. Cannot view another customer\'s vehicle.'}), 403
             
         del vehicle['CUSTOMER_ID']
@@ -1179,6 +1279,39 @@ def link_driver_to_vehicle():
     finally:
         cursor.close()
         conn.close()
+
+@app.route('/api/stats/overview', methods=['GET'])
+@login_required
+@employee_required
+def stats_overview():
+    # 中文：仪表盘聚合数据，供前端 Recharts 等组件做数据可视化（Part II 加分项）
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database error'}), 500
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT
+                (SELECT COUNT(*) FROM HKR_AUTO_POLICY) AS auto_policy_count,
+                (SELECT COALESCE(SUM(Premium_Amount), 0) FROM HKR_AUTO_POLICY) AS auto_premium_total,
+                (SELECT COUNT(*) FROM HKR_HOME_POLICY) AS home_policy_count,
+                (SELECT COALESCE(SUM(Premium_Amount), 0) FROM HKR_HOME_POLICY) AS home_premium_total,
+                (SELECT COUNT(*) FROM HKR_CUSTOMER) AS customer_count
+            """
+        )
+        row = cursor.fetchone()
+        if row:
+            for k, v in list(row.items()):
+                if isinstance(v, Decimal):
+                    row[k] = float(v)
+        return jsonify(row), 200
+    except Error as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
 
 if __name__ == '__main__':
     app.run(debug=True)

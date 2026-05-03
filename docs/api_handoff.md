@@ -4,7 +4,22 @@
 
 **Data Format:** All requests and responses use `application/json`. Ensure your fetch/axios calls include the header `Content-Type: application/json`.
 
-**Authentication Strategy:** This API uses server-side sessions. Once a user logs in successfully, the browser will automatically receive and store a session cookie. The front-end must ensure credentials/cookies are included in subsequent requests (e.g., `credentials: 'include'` in Fetch API or `withCredentials: true` in Axios).
+**Authentication Strategy (dual mode):**
+
+1. **Session cookie（兼容旧说明）**  
+   登录成功后 Flask 仍会写入 session；浏览器携带 Cookie 时，后续请求可不带 `Authorization` 头（需 `credentials: 'include'` / `withCredentials: true`）。
+
+2. **双 JWT Token（推荐 SPA + 加分项：缓存/刷新）**  
+   `POST /api/login` 成功时除 `role` 外还会返回：
+   - `access_token`：短期访问令牌（默认约 15 分钟，见环境变量 `JWT_ACCESS_MINUTES`）
+   - `refresh_token`：长期刷新令牌（默认约 7 天，见 `JWT_REFRESH_DAYS`）
+   - `token_type`: `"Bearer"`，`expires_in`：秒数  
+
+   后续业务请求在请求头加入：`Authorization: Bearer <access_token>`。  
+   当 `access_token` 过期时，使用 `POST /api/refresh` 传入 `refresh_token` 换取新的 access/refresh（前端可将 refresh 存 `sessionStorage` 等并配合 axios 拦截器自动刷新）。
+
+3. **员工仪表盘统计（图表数据源）**  
+   `GET /api/stats/overview`（需登录且角色为员工 `E`）：返回车险/家险保单数、保费合计、客户数等聚合 JSON，供前端 Recharts 等可视化。
 
 ---
 
@@ -40,7 +55,22 @@
 {"username": "jdoe", "password": "password123"}
 ```
 
-**Success Response:** `200 OK` `{"message": "Login successful", "role": "C"}` (Use the role to conditionally render the UI).
+**Success Response:** `200 OK` — 至少包含  
+`{"message": "Login successful", "role": "C"|"E", "access_token": "...", "refresh_token": "...", "token_type": "Bearer", "expires_in": <秒>}`  
+（前端用 `role` 分支 UI；用 Bearer token 调用 API，或用 Cookie-only 模式亦可。）
+
+---
+
+### Refresh access token
+
+**Method:** `POST /api/refresh`
+
+**Body:**
+```json
+{"refresh_token": "<refresh_token from login>"}
+```
+
+**Success:** `200 OK` 返回新的 `access_token`、`refresh_token`、`expires_in`、`role`。
 
 ---
 

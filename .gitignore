@@ -11,9 +11,11 @@ data/
 # --- React/Node (前端) ---
 web/node_modules/
 web/build/
+web/dist/
 web/.pnp
 web/.pnp.js
 web/coverage/
+web/tsconfig.tsbuildinfo
 
 # --- 后端/通用 ---
 __pycache__/
