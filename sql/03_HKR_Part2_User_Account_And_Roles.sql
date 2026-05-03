@@ -1,3 +1,13 @@
+-- =========================================================
+-- 03_HKR_Part2_User_Account_And_Roles.sql
+-- Note:
+-- This file defines the user table for database design
+-- documentation purposes.
+-- The backend actually uses the table created by
+-- 08_HKR_Web_Backend_User_Table.sql.
+-- This file can run independently without conflict with 08
+-- due to IF NOT EXISTS.
+-- =========================================================
 USE HKR_DB;
 CREATE TABLE IF NOT EXISTS HKR_USER (
     User_ID BIGINT AUTO_INCREMENT PRIMARY KEY,
