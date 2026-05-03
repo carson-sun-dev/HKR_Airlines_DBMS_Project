@@ -15,7 +15,7 @@ UNION ALL SELECT 'HKR_DRIVER_VEHICLE', COUNT(*) FROM HKR_DRIVER_VEHICLE;
 
 
 -- Test Query 2: View user accounts and roles
-SELECT * FROM HKR_USER_ACCOUNT;
+SELECT * FROM HKR_USER;
 
 
 -- Test Query 3: Customer 1 auto insurance policies
