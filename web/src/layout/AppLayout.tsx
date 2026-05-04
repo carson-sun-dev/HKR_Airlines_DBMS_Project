@@ -39,9 +39,6 @@ export function AppLayout() {
             <NavLink to="/manage" className={navCls}>
               Admin &amp; policies
             </NavLink>
-            <NavLink to="/customers/lookup" className={navCls}>
-              Customer lookup
-            </NavLink>
           </>
         ) : null}
         <div style={{ flex: 1 }} />

@@ -310,7 +310,7 @@ textarea {
   flex-shrink: 0;
 }
 
-/* Customer lookup & dashboard: labeled fields + button with consistent gaps */
+/* Labeled fields + button with consistent gaps */
 .form-inline-end {
   display: flex;
   flex-wrap: wrap;

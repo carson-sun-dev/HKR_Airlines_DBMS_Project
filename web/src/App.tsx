@@ -5,7 +5,6 @@ import { AppLayout } from "@/layout/AppLayout";
 import { LoginPage } from "@/pages/LoginPage";
 import { RegisterPage } from "@/pages/RegisterPage";
 import { DashboardPage } from "@/pages/DashboardPage";
-import { CustomerLookupPage } from "@/pages/CustomerLookupPage";
 import { StaffWorkspace } from "@/pages/StaffWorkspace";
 import { EmployeeReportDatasetPage } from "@/pages/EmployeeReportDatasetPage";
 import { EmployeeRoute } from "@/components/EmployeeRoute";
@@ -30,7 +29,6 @@ export default function App() {
         }
       >
         <Route index element={<DashboardPage />} />
-        <Route path="customers/lookup" element={<CustomerLookupPage />} />
         <Route
           path="manage"
           element={

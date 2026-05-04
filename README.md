@@ -51,7 +51,7 @@ Dependencies: `requirements.txt` (backend), `web/package.json` (frontend).
 
 1. **Authentication** — Register/login; roles **C** (policyholder, tied to `CUSTOMER_ID`) and **E** (employee). Access and refresh tokens; logout clears client storage.
 2. **Policyholder portal** — View profile; update mailing address; look up own policies, invoices, payments, and related records by ID; report payments against invoices (methods aligned with backend: PayPal, Credit, Debit, Check).
-3. **Operations console** — Employee-only routes: customer lookup, full CRUD-style workflows for auto/home policies, invoices, payments, insured homes/vehicles, drivers, and driver–vehicle links; company overview metrics and charts on the home dashboard.
+3. **Operations console** — Employee-only routes: full CRUD-style workflows for auto/home policies, invoices, payments, insured homes/vehicles, drivers, and driver–vehicle links; company overview metrics and charts on the home dashboard.
 4. **Security & integrity** — Prepared statements for mutating queries; authorization checks on routes; password hashing suitable for the deployed Python/OpenSSL environment.
 
 ---

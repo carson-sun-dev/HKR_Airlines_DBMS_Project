@@ -113,7 +113,13 @@ def register():
         return jsonify({'message': 'User registered successfully'}), 201
     except Error as e:
         conn.rollback() # Rollback on error to prevent partial commits
-        return jsonify({'error': str(e)}), 400
+        msg = str(e)
+        # Customer signup can fail if CUSTOMER_ID does not exist in HKR_CUSTOMER.
+        if "HKR_USER_CUST_FK" in msg or "foreign key constraint fails" in msg.lower():
+            return jsonify({'error': "The customer ID you entered does not exist. Please contact an employee to register it first."}), 400
+        if "Duplicate entry" in msg and "Username" in msg:
+            return jsonify({'error': "That username is already taken. Please choose a different one."}), 400
+        return jsonify({'error': "We could not complete registration. Please check your information and try again."}), 400
     finally:
         cursor.close()
         conn.close()
