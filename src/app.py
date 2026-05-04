@@ -608,18 +608,35 @@ def delete_auto_policy(policy_id):
     cursor = conn.cursor(prepared=True)
     
     try:
-        query = "DELETE FROM HKR_AUTO_POLICY WHERE Auto_Policy_ID = %s"
-        cursor.execute(query, (policy_id,))
-        conn.commit()
-        
-        if cursor.rowcount == 0:
+        # Ensure policy exists before attempting a cascading cleanup.
+        cursor.execute("SELECT Auto_Policy_ID FROM HKR_AUTO_POLICY WHERE Auto_Policy_ID = %s", (policy_id,))
+        if not cursor.fetchone():
             return jsonify({'error': 'Policy not found'}), 404
-            
-        return jsonify({'message': 'Auto Policy deleted successfully'}), 200
+
+        # Remove dependent records in FK-safe order:
+        # Driver-Vehicle link -> Vehicle, Payment -> Invoice, then Policy.
+        cursor.execute(
+            """DELETE dv
+               FROM HKR_DRIVER_VEHICLE dv
+               INNER JOIN HKR_INSURED_VEHICLE v ON dv.Vehicle_ID = v.Vehicle_ID
+               WHERE v.Auto_Policy_ID = %s""",
+            (policy_id,),
+        )
+        cursor.execute("DELETE FROM HKR_INSURED_VEHICLE WHERE Auto_Policy_ID = %s", (policy_id,))
+        cursor.execute(
+            """DELETE pay
+               FROM HKR_AUTO_PAYMENT pay
+               INNER JOIN HKR_AUTO_INVOICE i ON pay.Auto_Invoice_ID = i.Auto_Invoice_ID
+               WHERE i.Auto_Policy_ID = %s""",
+            (policy_id,),
+        )
+        cursor.execute("DELETE FROM HKR_AUTO_INVOICE WHERE Auto_Policy_ID = %s", (policy_id,))
+        cursor.execute("DELETE FROM HKR_AUTO_POLICY WHERE Auto_Policy_ID = %s", (policy_id,))
+        conn.commit()
+        return jsonify({'message': 'Auto Policy and dependent records deleted successfully'}), 200
     except Error as e:
         conn.rollback()
-        # Handle foreign key constraint failures gracefully
-        return jsonify({'error': 'Cannot delete policy. Dependent records exist.', 'details': str(e)}), 400
+        return jsonify({'error': 'Cannot delete policy and dependent records.', 'details': str(e)}), 400
     finally:
         cursor.close()
         conn.close()
@@ -722,17 +739,17 @@ def delete_auto_invoice(invoice_id):
     cursor = conn.cursor(prepared=True)
     
     try:
-        query = "DELETE FROM HKR_AUTO_INVOICE WHERE Auto_Invoice_ID = %s"
-        cursor.execute(query, (invoice_id,))
-        conn.commit()
-        
-        if cursor.rowcount == 0:
+        cursor.execute("SELECT Auto_Invoice_ID FROM HKR_AUTO_INVOICE WHERE Auto_Invoice_ID = %s", (invoice_id,))
+        if not cursor.fetchone():
             return jsonify({'error': 'Invoice not found'}), 404
-            
-        return jsonify({'message': 'Auto Invoice deleted successfully'}), 200
+
+        cursor.execute("DELETE FROM HKR_AUTO_PAYMENT WHERE Auto_Invoice_ID = %s", (invoice_id,))
+        cursor.execute("DELETE FROM HKR_AUTO_INVOICE WHERE Auto_Invoice_ID = %s", (invoice_id,))
+        conn.commit()
+        return jsonify({'message': 'Auto Invoice and dependent payments deleted successfully'}), 200
     except Error as e:
         conn.rollback()
-        return jsonify({'error': 'Cannot delete invoice. Dependent records (payments) may exist.', 'details': str(e)}), 400
+        return jsonify({'error': 'Cannot delete invoice and dependent payments.', 'details': str(e)}), 400
     finally:
         cursor.close()
         conn.close()
@@ -940,17 +957,28 @@ def delete_home_policy(policy_id):
     cursor = conn.cursor(prepared=True)
     
     try:
-        query = "DELETE FROM HKR_HOME_POLICY WHERE Home_Policy_ID = %s"
-        cursor.execute(query, (policy_id,))
-        conn.commit()
-        
-        if cursor.rowcount == 0:
+        # Ensure policy exists before attempting a cascading cleanup.
+        cursor.execute("SELECT Home_Policy_ID FROM HKR_HOME_POLICY WHERE Home_Policy_ID = %s", (policy_id,))
+        if not cursor.fetchone():
             return jsonify({'error': 'Home Policy not found'}), 404
-            
-        return jsonify({'message': 'Home Policy deleted successfully'}), 200
+
+        # Remove dependent records in FK-safe order:
+        # Payment -> Invoice, Home, then Policy.
+        cursor.execute(
+            """DELETE pay
+               FROM HKR_HOME_PAYMENT pay
+               INNER JOIN HKR_HOME_INVOICE i ON pay.Home_Invoice_ID = i.Home_Invoice_ID
+               WHERE i.Home_Policy_ID = %s""",
+            (policy_id,),
+        )
+        cursor.execute("DELETE FROM HKR_HOME_INVOICE WHERE Home_Policy_ID = %s", (policy_id,))
+        cursor.execute("DELETE FROM HKR_INSURED_HOME WHERE Home_Policy_ID = %s", (policy_id,))
+        cursor.execute("DELETE FROM HKR_HOME_POLICY WHERE Home_Policy_ID = %s", (policy_id,))
+        conn.commit()
+        return jsonify({'message': 'Home Policy and dependent records deleted successfully'}), 200
     except Error as e:
         conn.rollback()
-        return jsonify({'error': 'Cannot delete policy. Dependent records exist.', 'details': str(e)}), 400
+        return jsonify({'error': 'Cannot delete home policy and dependent records.', 'details': str(e)}), 400
     finally:
         cursor.close()
         conn.close()
@@ -1050,17 +1078,17 @@ def delete_home_invoice(invoice_id):
     cursor = conn.cursor(prepared=True)
     
     try:
-        query = "DELETE FROM HKR_HOME_INVOICE WHERE Home_Invoice_ID = %s"
-        cursor.execute(query, (invoice_id,))
-        conn.commit()
-        
-        if cursor.rowcount == 0:
+        cursor.execute("SELECT Home_Invoice_ID FROM HKR_HOME_INVOICE WHERE Home_Invoice_ID = %s", (invoice_id,))
+        if not cursor.fetchone():
             return jsonify({'error': 'Home Invoice not found'}), 404
-            
-        return jsonify({'message': 'Home Invoice deleted successfully'}), 200
+
+        cursor.execute("DELETE FROM HKR_HOME_PAYMENT WHERE Home_Invoice_ID = %s", (invoice_id,))
+        cursor.execute("DELETE FROM HKR_HOME_INVOICE WHERE Home_Invoice_ID = %s", (invoice_id,))
+        conn.commit()
+        return jsonify({'message': 'Home Invoice and dependent payments deleted successfully'}), 200
     except Error as e:
         conn.rollback()
-        return jsonify({'error': 'Cannot delete invoice. Dependent records exist.', 'details': str(e)}), 400
+        return jsonify({'error': 'Cannot delete home invoice and dependent payments.', 'details': str(e)}), 400
     finally:
         cursor.close()
         conn.close()
@@ -1381,15 +1409,17 @@ def delete_insured_vehicle(vehicle_id):
     conn = get_db_connection()
     cursor = conn.cursor(prepared=True)
     try:
-        query = "DELETE FROM HKR_INSURED_VEHICLE WHERE Vehicle_ID = %s"
-        cursor.execute(query, (vehicle_id,))
-        conn.commit()
-        if cursor.rowcount == 0:
+        cursor.execute("SELECT Vehicle_ID FROM HKR_INSURED_VEHICLE WHERE Vehicle_ID = %s", (vehicle_id,))
+        if not cursor.fetchone():
             return jsonify({'error': 'Vehicle not found'}), 404
-        return jsonify({'message': 'Vehicle deleted successfully'}), 200
+
+        cursor.execute("DELETE FROM HKR_DRIVER_VEHICLE WHERE Vehicle_ID = %s", (vehicle_id,))
+        cursor.execute("DELETE FROM HKR_INSURED_VEHICLE WHERE Vehicle_ID = %s", (vehicle_id,))
+        conn.commit()
+        return jsonify({'message': 'Vehicle and dependent driver links deleted successfully'}), 200
     except Error as e:
         conn.rollback()
-        return jsonify({'error': 'Cannot delete vehicle. Dependent driver records may exist.', 'details': str(e)}), 400
+        return jsonify({'error': 'Cannot delete vehicle and dependent driver links.', 'details': str(e)}), 400
     finally:
         cursor.close()
         conn.close()
@@ -1488,15 +1518,17 @@ def delete_driver(driver_id):
     conn = get_db_connection()
     cursor = conn.cursor(prepared=True)
     try:
-        query = "DELETE FROM HKR_DRIVER WHERE Driver_ID = %s"
-        cursor.execute(query, (driver_id,))
-        conn.commit()
-        if cursor.rowcount == 0:
+        cursor.execute("SELECT Driver_ID FROM HKR_DRIVER WHERE Driver_ID = %s", (driver_id,))
+        if not cursor.fetchone():
             return jsonify({'error': 'Driver not found'}), 404
-        return jsonify({'message': 'Driver deleted successfully'}), 200
+
+        cursor.execute("DELETE FROM HKR_DRIVER_VEHICLE WHERE Driver_ID = %s", (driver_id,))
+        cursor.execute("DELETE FROM HKR_DRIVER WHERE Driver_ID = %s", (driver_id,))
+        conn.commit()
+        return jsonify({'message': 'Driver and vehicle links deleted successfully'}), 200
     except Error as e:
         conn.rollback()
-        return jsonify({'error': 'Cannot delete driver. Linked to a vehicle.', 'details': str(e)}), 400
+        return jsonify({'error': 'Cannot delete driver and linked vehicle records.', 'details': str(e)}), 400
     finally:
         cursor.close()
         conn.close()
