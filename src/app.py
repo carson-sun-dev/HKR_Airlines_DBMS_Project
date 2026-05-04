@@ -1431,7 +1431,28 @@ def get_driver(driver_id):
         driver = cursor.fetchone()
         
         if not driver:
-            return jsonify({'error': 'Driver not found'}), 404        
+            return jsonify({'error': 'Driver not found'}), 404
+
+        # Customers may only view drivers linked to their insured vehicles / auto policies.
+        if g.auth.get('role') == 'C':
+            raw_cid = g.auth.get('customer_id')
+            if raw_cid is None:
+                return jsonify({'error': 'Forbidden. Account has no linked customer record.'}), 403
+            customer_id = int(raw_cid)
+            cursor.execute(
+                """
+                SELECT 1 AS ok
+                FROM HKR_DRIVER_VEHICLE dv
+                INNER JOIN HKR_INSURED_VEHICLE v ON dv.Vehicle_ID = v.Vehicle_ID
+                INNER JOIN HKR_AUTO_POLICY p ON v.Auto_Policy_ID = p.Auto_Policy_ID
+                WHERE dv.Driver_ID = %s AND p.CUSTOMER_ID = %s
+                LIMIT 1
+                """,
+                (driver_id, customer_id),
+            )
+            if not cursor.fetchone():
+                return jsonify({'error': 'Forbidden. This driver is not on your policy.'}), 403
+
         return jsonify(driver), 200
     finally:
         cursor.close()
@@ -1500,6 +1521,69 @@ def link_driver_to_vehicle():
     finally:
         cursor.close()
         conn.close()
+
+@app.route('/api/reports/auto_policies', methods=['GET'])
+@login_required
+@employee_required
+def report_all_auto_policies():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database error'}), 500
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            "SELECT * FROM HKR_AUTO_POLICY ORDER BY Auto_Policy_ID"
+        )
+        rows = cursor.fetchall()
+        return jsonify(_json_clean_rows(rows)), 200
+    except Error as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.route('/api/reports/home_policies', methods=['GET'])
+@login_required
+@employee_required
+def report_all_home_policies():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database error'}), 500
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            "SELECT * FROM HKR_HOME_POLICY ORDER BY Home_Policy_ID"
+        )
+        rows = cursor.fetchall()
+        return jsonify(_json_clean_rows(rows)), 200
+    except Error as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.route('/api/reports/customers', methods=['GET'])
+@login_required
+@employee_required
+def report_all_customers():
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database error'}), 500
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            "SELECT * FROM HKR_CUSTOMER ORDER BY CUSTOMER_ID"
+        )
+        rows = cursor.fetchall()
+        return jsonify(_json_clean_rows(rows)), 200
+    except Error as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
 
 @app.route('/api/stats/overview', methods=['GET'])
 @login_required

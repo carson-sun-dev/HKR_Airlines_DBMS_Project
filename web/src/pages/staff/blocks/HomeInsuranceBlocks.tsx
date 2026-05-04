@@ -288,8 +288,8 @@ export function HomeInsuranceBlocks() {
               <div className="field" style={{ marginBottom: 0 }}>
                 <label>Status</label>
                 <select value={hpStat} onChange={(e) => setHpStat(e.target.value)}>
-                  <option value="C">Current (C)</option>
-                  <option value="E">Expired (E)</option>
+                  <option value="C">Current</option>
+                  <option value="E">Expired</option>
                 </select>
               </div>
               <div className="field" style={{ marginBottom: 0 }}>
@@ -313,8 +313,8 @@ export function HomeInsuranceBlocks() {
               <div className="field" style={{ marginBottom: 0 }}>
                 <label>Status</label>
                 <select value={hpStatU} onChange={(e) => setHpStatU(e.target.value)}>
-                  <option value="C">Current (C)</option>
-                  <option value="E">Expired (E)</option>
+                  <option value="C">Current</option>
+                  <option value="E">Expired</option>
                 </select>
               </div>
               <div className="field" style={{ marginBottom: 0 }}>

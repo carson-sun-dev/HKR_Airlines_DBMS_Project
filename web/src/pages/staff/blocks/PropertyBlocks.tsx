@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "@/api/client";
 import { StaffActionFeedback } from "@/components/StaffActionFeedback";
 import { ObjectTable } from "@/components/ObjectTable";
+import { HOME_TYPE_LABEL, VEHICLE_STATUS_LABEL } from "@/utils/dbEnumLabels";
 import { apiDelete, useStaffFeedback } from "../useStaffFeedback";
 
 function numId(raw: string): number | null {
@@ -215,11 +216,11 @@ export function PropertyBlocks() {
                 <input value={hArea} onChange={(e) => setHArea(e.target.value)} />
               </div>
               <div className="field" style={{ marginBottom: 0 }}>
-                <label>Home type (code)</label>
+                <label>Home type</label>
                 <select value={hType} onChange={(e) => setHType(e.target.value as (typeof HT)[number])}>
                   {HT.map((x) => (
                     <option key={x} value={x}>
-                      {x}
+                      {HOME_TYPE_LABEL[x]}
                     </option>
                   ))}
                 </select>
@@ -329,11 +330,11 @@ export function PropertyBlocks() {
                 <input value={vMm} onChange={(e) => setVMm(e.target.value)} />
               </div>
               <div className="field" style={{ marginBottom: 0 }}>
-                <label>Vehicle status (code)</label>
+                <label>Vehicle status</label>
                 <select value={vStat} onChange={(e) => setVStat(e.target.value as (typeof VS)[number])}>
                   {VS.map((x) => (
                     <option key={x} value={x}>
-                      {x}
+                      {VEHICLE_STATUS_LABEL[x]}
                     </option>
                   ))}
                 </select>
@@ -356,7 +357,7 @@ export function PropertyBlocks() {
               <select value={vStatU} onChange={(e) => setVStatU(e.target.value as (typeof VS)[number])}>
                 {VS.map((x) => (
                   <option key={x} value={x}>
-                    {x}
+                    {VEHICLE_STATUS_LABEL[x]}
                   </option>
                 ))}
               </select>

@@ -17,6 +17,7 @@ import { api } from "@/api/client";
 import { useAuth } from "@/context/AuthContext";
 import { ObjectTable } from "@/components/ObjectTable";
 import { myRecordsPageSchema, overviewStatsSchema } from "@/schemas/forms";
+import { formatTableCell } from "@/utils/dbEnumLabels";
 import { humanizeColumnLabel } from "@/utils/fieldDisplayNames";
 
 const COLORS = ["#0ea5e9", "#22c55e", "#8b5cf6", "#f59e0b"];
@@ -29,11 +30,6 @@ const CHART_TIP = {
 
 function looksLikeErrorMessage(msg: string): boolean {
   return /fail|error|forbidden|denied|invalid|unauthorized|not found/i.test(msg);
-}
-
-function formatCell(v: unknown): string {
-  if (v == null) return "";
-  return String(v);
 }
 
 const RECORD_PAGE_SIZE = 10;
@@ -430,7 +426,7 @@ export function DashboardPage() {
                     {myListItems.map((row, idx) => (
                       <tr key={`${MY_RECORD_ID_KEY[qKind]}-${String(row[MY_RECORD_ID_KEY[qKind]] ?? idx)}`}>
                         {(MY_RECORD_SUMMARY_COLS[qKind] ?? []).map((col) => (
-                          <td key={col}>{formatCell(row[col])}</td>
+                          <td key={col}>{formatTableCell(col, row[col])}</td>
                         ))}
                       </tr>
                     ))}
@@ -621,25 +617,59 @@ export function DashboardPage() {
                 gap: "1rem",
               }}
             >
-              {[
-                { label: "Auto policies (count)", value: stats.auto_policy_count },
-                { label: "Home policies (count)", value: stats.home_policy_count },
-                { label: "Customers (registered)", value: stats.customer_count },
-                {
-                  label: "Auto premium (total)",
-                  value: `$${stats.auto_premium_total.toLocaleString("en-US")}`,
-                },
-                {
-                  label: "Home premium (total)",
-                  value: `$${stats.home_premium_total.toLocaleString("en-US")}`,
-                },
-              ].map((c) => (
-                <div key={c.label} className="card">
-                  <div className="card-muted">{c.label}</div>
-                  <div style={{ fontSize: "1.5rem", fontWeight: 700, marginTop: "0.35rem", color: "var(--primary-dark)" }}>
-                    {c.value}
+              {(
+                [
+                  {
+                    label: "Auto policies (count)",
+                    display: String(stats.auto_policy_count),
+                    to: "/reports/auto-policies",
+                  },
+                  {
+                    label: "Home policies (count)",
+                    display: String(stats.home_policy_count),
+                    to: "/reports/home-policies",
+                  },
+                  {
+                    label: "Customers (registered)",
+                    display: String(stats.customer_count),
+                    to: "/reports/customers",
+                  },
+                  {
+                    label: "Auto premium (total)",
+                    display: `$${stats.auto_premium_total.toLocaleString("en-US")}`,
+                    to: "/reports/auto-policies",
+                  },
+                  {
+                    label: "Home premium (total)",
+                    display: `$${stats.home_premium_total.toLocaleString("en-US")}`,
+                    to: "/reports/home-policies",
+                  },
+                ] as const
+              ).map((c) => (
+                <Link
+                  key={c.label}
+                  to={c.to}
+                  style={{
+                    textDecoration: "none",
+                    color: "inherit",
+                    display: "block",
+                    borderRadius: 12,
+                  }}
+                >
+                  <div
+                    className="card"
+                    style={{
+                      cursor: "pointer",
+                      height: "100%",
+                      transition: "box-shadow 0.15s ease",
+                    }}
+                  >
+                    <div className="card-muted">{c.label}</div>
+                    <div style={{ fontSize: "1.5rem", fontWeight: 700, marginTop: "0.35rem", color: "var(--primary-dark)" }}>
+                      {c.display}
+                    </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           ) : null}

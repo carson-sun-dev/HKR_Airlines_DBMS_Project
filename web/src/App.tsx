@@ -7,6 +7,7 @@ import { RegisterPage } from "@/pages/RegisterPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { CustomerLookupPage } from "@/pages/CustomerLookupPage";
 import { StaffWorkspace } from "@/pages/StaffWorkspace";
+import { EmployeeReportDatasetPage } from "@/pages/EmployeeReportDatasetPage";
 import { EmployeeRoute } from "@/components/EmployeeRoute";
 
 function PrivateRoute({ children }: { children: ReactNode }) {
@@ -35,6 +36,14 @@ export default function App() {
           element={
             <EmployeeRoute>
               <StaffWorkspace />
+            </EmployeeRoute>
+          }
+        />
+        <Route
+          path="reports/:dataset"
+          element={
+            <EmployeeRoute>
+              <EmployeeReportDatasetPage />
             </EmployeeRoute>
           }
         />

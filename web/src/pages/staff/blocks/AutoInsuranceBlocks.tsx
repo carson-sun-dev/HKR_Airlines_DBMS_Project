@@ -294,8 +294,8 @@ export function AutoInsuranceBlocks() {
               <div className="field" style={{ marginBottom: 0 }}>
                 <label>Status</label>
                 <select value={apStat} onChange={(e) => setApStat(e.target.value)}>
-                  <option value="C">Current (C)</option>
-                  <option value="E">Expired (E)</option>
+                  <option value="C">Current</option>
+                  <option value="E">Expired</option>
                 </select>
               </div>
               <div className="field" style={{ marginBottom: 0 }}>
@@ -319,8 +319,8 @@ export function AutoInsuranceBlocks() {
               <div className="field" style={{ marginBottom: 0 }}>
                 <label>Status</label>
                 <select value={apStatU} onChange={(e) => setApStatU(e.target.value)}>
-                  <option value="C">Current (C)</option>
-                  <option value="E">Expired (E)</option>
+                  <option value="C">Current</option>
+                  <option value="E">Expired</option>
                 </select>
               </div>
               <div className="field" style={{ marginBottom: 0 }}>

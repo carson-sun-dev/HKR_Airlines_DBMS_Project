@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "@/api/client";
 import { StaffActionFeedback } from "@/components/StaffActionFeedback";
 import { ObjectTable } from "@/components/ObjectTable";
+import { CUSTOMER_TYPE_LABEL, GENDER_LABEL, MARITAL_STATUS_LABEL } from "@/utils/dbEnumLabels";
 import { customerIdParamSchema } from "@/schemas/forms";
 import { useStaffFeedback } from "../useStaffFeedback";
 
@@ -17,9 +18,9 @@ export function CustomerBlock() {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [zip, setZip] = useState("");
-  const [gender, setGender] = useState("");
-  const [marital, setMarital] = useState("S");
-  const [ctype, setCtype] = useState("B");
+  const [gender, setGender] = useState<"" | "M" | "F">("");
+  const [marital, setMarital] = useState<"M" | "S" | "W">("S");
+  const [ctype, setCtype] = useState<"A" | "H" | "B">("B");
 
   const [uStreet, setUStreet] = useState("");
   const [uCity, setUCity] = useState("");
@@ -62,7 +63,7 @@ export function CustomerBlock() {
         city,
         state,
         zip_code: zip,
-        gender: gender || null,
+        gender: gender === "" ? null : gender,
         marital_status: marital,
         customer_type: ctype,
       });
@@ -147,23 +148,27 @@ export function CustomerBlock() {
               <input value={zip} onChange={(e) => setZip(e.target.value)} />
             </div>
             <div className="field" style={{ marginBottom: 0 }}>
-              <label>Gender (M / F, optional)</label>
-              <input value={gender} onChange={(e) => setGender(e.target.value)} maxLength={1} />
-            </div>
-            <div className="field" style={{ marginBottom: 0 }}>
-              <label>Marital status</label>
-              <select value={marital} onChange={(e) => setMarital(e.target.value)}>
-                <option value="M">Married (M)</option>
-                <option value="S">Single (S)</option>
-                <option value="W">Widowed (W)</option>
+              <label>Gender (optional)</label>
+              <select value={gender} onChange={(e) => setGender(e.target.value as "" | "M" | "F")}>
+                <option value="">Not specified</option>
+                <option value="M">{GENDER_LABEL.M}</option>
+                <option value="F">{GENDER_LABEL.F}</option>
               </select>
             </div>
             <div className="field" style={{ marginBottom: 0 }}>
-              <label>Customer type (A / H / B)</label>
-              <select value={ctype} onChange={(e) => setCtype(e.target.value)}>
-                <option value="A">A</option>
-                <option value="H">H</option>
-                <option value="B">B</option>
+              <label>Marital status</label>
+              <select value={marital} onChange={(e) => setMarital(e.target.value as "M" | "S" | "W")}>
+                <option value="M">{MARITAL_STATUS_LABEL.M}</option>
+                <option value="S">{MARITAL_STATUS_LABEL.S}</option>
+                <option value="W">{MARITAL_STATUS_LABEL.W}</option>
+              </select>
+            </div>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>Customer type</label>
+              <select value={ctype} onChange={(e) => setCtype(e.target.value as "A" | "H" | "B")}>
+                <option value="A">{CUSTOMER_TYPE_LABEL.A}</option>
+                <option value="H">{CUSTOMER_TYPE_LABEL.H}</option>
+                <option value="B">{CUSTOMER_TYPE_LABEL.B}</option>
               </select>
             </div>
           </div>

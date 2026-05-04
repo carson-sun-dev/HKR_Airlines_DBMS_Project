@@ -1,3 +1,4 @@
+import { formatTableCell } from "@/utils/dbEnumLabels";
 import { humanizeColumnLabel } from "@/utils/fieldDisplayNames";
 
 /** Renders a JSON object as a single-row table with readable column titles. */
@@ -17,17 +18,11 @@ export function ObjectTable({ data }: { data: Record<string, unknown> | null }) 
         <tbody>
           <tr>
             {keys.map((k) => (
-              <td key={k}>{formatCell(data[k])}</td>
+              <td key={k}>{formatTableCell(k, data[k])}</td>
             ))}
           </tr>
         </tbody>
       </table>
     </div>
   );
-}
-
-function formatCell(v: unknown): string {
-  if (v === null || v === undefined) return "—";
-  if (typeof v === "object") return JSON.stringify(v);
-  return String(v);
 }
