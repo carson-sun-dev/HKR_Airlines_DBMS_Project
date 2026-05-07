@@ -97,13 +97,10 @@ Dependencies: `requirements.txt` (backend), `web/package.json` (frontend).
 
 ---
 
-## Documentation & deliverables
-
-- **Demo / walkthrough**: REST usage, UI flows (policyholder vs. employee), and execution of required analytical SQL where applicable.
-- **Report**: PDF per course instructions (design, security, complex queries, etc.).
-
----
-
 ## Project highlights
 
-*(Team may summarize differentiation—e.g., JWT flow, role enforcement, insurance domain modeling, UI professionalism.)*
+- **End-to-end insurance workflow modeling** — Normalized MySQL schema covers customer, policy, invoice, payment, insured home/vehicle, and driver-vehicle relationships with business-safe constraints.
+- **Security-first application flow** — JWT access/refresh token lifecycle, role-gated APIs (policyholder vs. employee), password hashing, and parameterized SQL for injection-resistant data operations.
+- **Operational analytics in product UI** — Employee dashboard includes aggregate metrics and charts (Recharts) so staff can monitor portfolio and billing health without running manual SQL.
+- **Performance-oriented relational design** — Targeted indexes on high-frequency join paths improve consistency for portal queries and employee data-management screens.
+- **Practical user experience details** — Remember-me session persistence, human-readable table labels, and guided customer self-service paths aligned with real operations.
